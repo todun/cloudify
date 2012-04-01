@@ -549,7 +549,7 @@ public class OpenstackCloudDriver extends CloudDriverSupport implements Provisio
 			md.setCloudifyInstalled(false);
 			md.setInstallationDirectory(cloud.getProvider().getRemoteDirectory());
 
-			md.setRemoteUsername("root");
+			md.setRemoteUsername("ubuntu");
 
 			return md;
 		} catch (final Exception e) {
@@ -782,7 +782,8 @@ public class OpenstackCloudDriver extends CloudDriverSupport implements Provisio
 				"X-Auth-Token", token).accept(
 				MediaType.APPLICATION_JSON).post(
 				String.class, String.format(
-						"{\"addFloatingIp\":{\"server\":\"%s\",\"address\":\"%s\"}}", serverid, ip));
+						"{\"addFloatingIp\":{\"address\":\"%s\"}}", ip));
+//                      "{\"addFloatingIp\":{\"server\":\"%s\",\"address\":\"%s\"}}", serverid, ip));
 
 	}
 
@@ -813,20 +814,20 @@ public class OpenstackCloudDriver extends CloudDriverSupport implements Provisio
 
 		final WebResource service = client.resource(this.identityEndpoint);
 
-		final String resp = service.path(
-				"/v2.0/tokens").header(
+		ClientResponse response = service.path(
+                "/v1.1/tokens")
+                .header("X-Auth-User", this.cloud.getUser().getUser())
+                .header("X-Auth-Key", this.cloud.getUser().getApiKey())
+                .header(
 				"Content-Type", "application/json").accept(
-				MediaType.APPLICATION_XML).post(
-				String.class, json);
+				MediaType.APPLICATION_XML).post(ClientResponse.class,
+				json);
 
-		final Matcher m = Pattern.compile(
-				"token id=\"([^\"]*)\"").matcher(
-				resp);
-		if (m.find()) {
-			final String token = m.group(1);
-			return token;
-		}
+        List<String> list = response.getHeaders().get("X-Auth-Token");
+        if (!list.isEmpty()) {
+            return list.get(0);
+        }
 
-		throw new RuntimeException("error:" + resp);
+		throw new RuntimeException("error:" + response.toString());
 	}
 }
